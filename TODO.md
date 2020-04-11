@@ -1,7 +1,11 @@
+Kubernetes deployment with Sprong Cloud Service-Discovery
+-
+https://www.baeldung.com/spring-cloud-kubernetes
+
 Github API
 -
-curl -u "clojj:9c161ac07b0a3327269f597e4de1e91cc96788e4" -X GET 'https://api.github.com/user/starred?direction=asc' | more
+curl -u "clojj:TOKEN" -X GET 'https://api.github.com/user/starred?direction=asc' | more
 
-IntelliJ tios
+IntelliJ tips
 -
 Ctrl Shift Del at block-brace removes outer block
