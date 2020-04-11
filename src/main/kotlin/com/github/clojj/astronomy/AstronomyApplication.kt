@@ -3,12 +3,14 @@ package com.github.clojj.astronomy
 import io.netty.channel.ChannelOption
 import io.netty.handler.timeout.ReadTimeoutHandler
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.client.reactive.ClientHttpConnector
@@ -21,9 +23,9 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.ExchangeFilterFunctions
 import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.bodyToFlow
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.router
-import reactor.core.publisher.Mono
 import reactor.netty.http.client.HttpClient
 import java.util.concurrent.TimeUnit
 
@@ -48,25 +50,24 @@ class Controller(configProperties: ConfigProperties) {
 
     @GetMapping("/firstpage")
     suspend fun page(): String {
-        val result: Mono<List<Repository>> = webClient
+        val result: Flow<Repository> = webClient
             .get()
             .uri("/user/starred")
             .accept(MediaType.APPLICATION_JSON)
             .retrieve()
-            .bodyToMono(object : ParameterizedTypeReference<List<Repository>>() {})
+            .bodyToFlow()
 
-        with(scope) {
+        val results = with(scope) {
             async {
-                result.subscribe {
+                result.map {
                     println("processing on thread ${Thread.currentThread().id}")
-                    for (repository in it) {
-                        println(repository.name)
-                    }
-                }
+                    "starred ${it.name}"
+                }.toList()
             }
         }
 
         println("requested on thread ${Thread.currentThread().id}")
+        println(results.await())
         return "Ok"
     }
 }
