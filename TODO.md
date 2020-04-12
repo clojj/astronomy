@@ -1,4 +1,4 @@
-Kubernetes deployment with Sprong Cloud Service-Discovery
+Kubernetes deployment with Spring Cloud Service-Discovery
 -
 https://www.baeldung.com/spring-cloud-kubernetes
 

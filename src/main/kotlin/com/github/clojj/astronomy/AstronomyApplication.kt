@@ -5,7 +5,7 @@ import io.netty.handler.timeout.ReadTimeoutHandler
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.reactive.awaitFirst
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.runApplication
@@ -21,11 +21,13 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.reactive.function.BodyInserters
+import org.springframework.web.reactive.function.client.ClientResponse
 import org.springframework.web.reactive.function.client.ExchangeFilterFunctions
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.bodyToFlow
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.router
+import reactor.core.publisher.Mono
 import reactor.netty.http.client.HttpClient
 import java.util.concurrent.TimeUnit
 
@@ -48,27 +50,21 @@ class Controller(configProperties: ConfigProperties) {
 
     private val scope = CoroutineScope(Job() + Dispatchers.Default + CoroutineName("parent scope for processing"))
 
-    @GetMapping("/firstpage")
-    suspend fun page(): String {
-        val result: Flow<Repository> = webClient
+    @GetMapping("/firstpage", produces = [MediaType.APPLICATION_JSON_VALUE])
+    suspend fun page(): Flow<Map<String, String>> {
+        val result: Mono<Flow<Map<String, String>>> = webClient
             .get()
             .uri("/user/starred")
             .accept(MediaType.APPLICATION_JSON)
-            .retrieve()
-            .bodyToFlow()
-
-        val results = with(scope) {
-            async {
-                result.map {
-                    println("processing on thread ${Thread.currentThread().id}")
-                    "starred ${it.name}"
-                }.toList()
+            .exchange().map { value: ClientResponse ->
+                next(value.headers().header("Link"))
+                value.bodyToFlow<Repository>().map { mapOf(Pair(it.name, it.description ?: "NO_DESCRIPTON")) }
             }
-        }
+        return result.awaitFirst()
+    }
 
-        println("requested on thread ${Thread.currentThread().id}")
-        println(results.await())
-        return "Ok"
+    private fun next(link: List<String>) {
+        println(link)
     }
 }
 
